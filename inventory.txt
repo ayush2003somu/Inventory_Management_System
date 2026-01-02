@@ -1,0 +1,6 @@
+P01,ayus,123.0,12
+P03,chips,50.0,10
+P02,biscuits,20.0,15
+P05,toffee,5.0,100
+P04,cold-drinks,60.0,40
+P06,namkeen,10.0,60
