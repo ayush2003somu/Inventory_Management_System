@@ -66,9 +66,9 @@ class InventoryException extends Exception{
     }
 }
 public class InventoryManagementSystem{
-    private static final String url = "jdbc:mysql://127.0.0.1:3306/mydb";
-    private static final String username = "root";
-    private static final String password = "12345";
+    private static final String url = "jdbc:mysql://127.0.0.1:3306/<your database name>";
+    private static final String username = "username";
+    private static final String password = "yourpassword";
     private Scanner scanner;
     // private TreeMap<String,Product> inventory;
     private static final int LOW_STOCK_LIMIT=5;                                                  
