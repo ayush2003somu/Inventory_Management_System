@@ -1,8 +1,8 @@
-import java.io.BufferedReader;
-import java.io.BufferedWriter;
-import java.io.FileReader;
-import java.io.FileWriter;
-import java.io.IOException;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.*;
 class Product{
     private String id;
@@ -66,17 +66,29 @@ class InventoryException extends Exception{
     }
 }
 public class InventoryManagementSystem{
+    private static final String url = "jdbc:mysql://127.0.0.1:3306/mydb";
+    private static final String username = "root";
+    private static final String password = "12345";
     private Scanner scanner;
-    private Map<String,Product> inventory;
-    private static final int LOW_STOCK_LIMIT = 5;
+    // private TreeMap<String,Product> inventory;
+    private static final int LOW_STOCK_LIMIT=5;                                                  
     public InventoryManagementSystem(){
-        inventory = FileManager.loadInventory();
         scanner = new Scanner(System.in);
     }
     public static void main(String[] args) {
-        new InventoryManagementSystem().run();
+        try{                                                         
+            Class.forName("com.mysql.cj.jdbc.Driver");               
+        }catch(ClassNotFoundException e){        
+            System.out.println("not extablished:");                    
+            System.out.println(e.getMessage());                      
+        }    
+        try (Connection connection = DriverManager.getConnection(url,username,password)){
+            new InventoryManagementSystem().run(connection);
+        } catch (SQLException e) {
+        }                                                        
+        
     }
-    public void run(){
+    public void run(Connection connection){
         int choice;
         System.out.println("===== Inventory Management System =====");
         do { 
@@ -84,124 +96,186 @@ public class InventoryManagementSystem{
             choice  = getIntInput("Enter Your Choice:");
             try {
                 switch (choice) {
-                    case 1 -> addProduct();
-                    case 2 -> updateProduct();
-                    case 3 -> deleteProduct();
-                    case 4 -> viewInventory();
-                    case 5 -> searchProduct();
-                    case 6 -> issueStock();
-                    case 7 -> restock();
+                    case 1 -> addProduct(connection);
+                    case 2 -> updateProduct(connection);
+                    case 3 -> deleteProduct(connection);
+                    case 4 -> viewInventory(connection);
+                    case 5 -> searchProduct(connection);
+                    case 6 -> issueStock(connection);
+                    case 7 -> restock(connection);
                     case 0 -> {
-                        FileManager.saveInventory(inventory);
                         System.out.println("Thank you for using the system!");
                     }
                     default -> System.out.println("Invalid choice!");
                 }
 
-            } catch (InventoryException | IllegalArgumentException e ) {
+            } catch (InventoryException | SQLException | IllegalArgumentException e  ) {
                 System.out.println("Error:" + e.getMessage());
             }
             if (choice!=0) pressEnterToContinue();
         } while (choice!=0);
 
     }
-    private void addProduct() throws InventoryException{
+    private void addProduct(Connection connection) throws InventoryException,SQLException{
+        String query = "INSERT INTO inventory VALUES(?,?,?,?)";
         String id = getStringInput("Enter Product Id:").toUpperCase();
-        if (inventory.containsKey(id)) {
-            throw new InventoryException ("Product already exists!");
-        }
+        // if (inventory.containsKey(id)) {
+        //     throw new InventoryException ("Product already exists!");
+        // }
         String name = getStringInput("Enter Product Name:");
         double price = getDoubleInput("Enter Product Price:");
-        int quantity = getIntInput("Enter Quantityt:");
-        inventory.put(id,new Product(id,name,price,quantity));
-        System.out.println("✓ Product Added Succesfully");
+        int quantity = getIntInput("Enter Quantity:");
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
+        preparedStatement.setString(1, id);
+        preparedStatement.setString(2, name);
+        preparedStatement.setDouble(3, price);
+        preparedStatement.setInt(4, quantity);
+        int rowsAffected = preparedStatement.executeUpdate();
+        // inventory.put(id,new Product(id,name,price,quantity));
+        if (rowsAffected>0)System.out.println("✓ Product Added Succesfully");
+        else System.out.println("Product Not Added!");
+        preparedStatement.close();
         
     }
-    private void updateProduct() throws InventoryException{
+    private void updateProduct(Connection connection) throws InventoryException,SQLException{
+        String query = "UPDATE inventory set ?=? where id=?";
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
         String id = getStringInput("Enter Product Id:").toUpperCase();
-        if (!inventory.containsKey(id)){
-            throw new InventoryException("Product Not Exist");
-        }
-        Product p = inventory.get(id);
-        System.out.println("Current:"+p);
+        // if (!inventory.containsKey(id)){
+        //     throw new InventoryException("Product Not Exist");
+        // }
+        preparedStatement.setString(3,id);
+        // Product p = inventory.get(id);
+        // System.out.println("Current:"+p);
 
         if (getYesNo("Update Name?")){
-            p.setName(getStringInput("Enter New Name:"));
-            inventory.put(id,p);
+            String str=getStringInput("Enter New Name:");
+            // p.setName(str);
+            preparedStatement.setString(1,"name");
+            preparedStatement.setString(2,str);
+            preparedStatement.executeUpdate();
+            // inventory.put(id,p);
         }
         if (getYesNo("Update Price?")){
-            p.setPrice(getIntInput("Enter New Price"));
-            inventory.put(id,p);
+            Double num =getDoubleInput("Enter New Price");
+            // p.setPrice(num);
+            preparedStatement.setString(1,"price");
+            preparedStatement.setDouble(2, num);
+            preparedStatement.executeUpdate();
+            // inventory.put(id,p);
         }
-        if (getYesNo("Update Quantity?")){
-            int amount = getIntInput("Enter updated Quantity:");
-            if (amount<0) throw new InventoryException("Quantity can't be negative.");
-            p.decreseQuantity(p.getQuantity());
-            p.addQuantity(amount);
-            inventory.put(id,p);
-        }
+        preparedStatement.close();
     }
-    private void deleteProduct() throws InventoryException{
-        String id = getStringInput("Enter Product Id:").toUpperCase();
-        if (!inventory.containsKey(id)){
-            throw new InventoryException("Product Not Exist");
-        }
-        inventory.remove(id);
-        System.out.println("Product removed successfully!");
+    private void deleteProduct(Connection connection) throws InventoryException,SQLException{
+       String query="DELETE from inventory WHERE id=?";
+       String id = getStringInput("Enter Product Id:").toUpperCase();
+    //    if (!inventory.containsKey(id)){
+    //        throw new InventoryException("Product Not Exist");
+    //    }
+       PreparedStatement preparedStatement = connection.prepareStatement(query);
+       preparedStatement.setString(1,id);
+       preparedStatement.executeUpdate();
+    //    inventory.remove(id);
+       System.out.println("Product removed successfully!");
+       preparedStatement.close();
+
     }
-    private void viewInventory(){
-        if (inventory.isEmpty()) {
-            System.out.println("Inventory is empty");
-            return;
-        }
+    private void viewInventory(Connection connection) throws SQLException{
+        String query = "SELECT * from inventory";
+        // if (inventory.isEmpty()) {
+        //     System.out.println("Inventory is empty");
+        //     return;
+        // }
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        if (resultSet.next()){
         viewFormat();
         double totalVal=0;
-        for (Product p:inventory.values()){
+        do{
+            Product p = new Product(resultSet.getString("id"), resultSet.getString("name"), resultSet.getDouble("price"), resultSet.getInt("quantity"));
             System.out.print(p);
             if (p.getQuantity()<LOW_STOCK_LIMIT){
                 System.out.print("⚠️ Low Stock");
             }
             System.out.println();
             totalVal+=p.getPrice()*p.getQuantity();
-        }
+        }while (resultSet.next());
         System.out.println("-".repeat(60));
         System.out.println("Total Inventory Value:"+totalVal);
+    } else System.out.println("Inventory is empty");
+        preparedStatement.close();
     }
-    private void searchProduct() throws InventoryException{
+    private void searchProduct(Connection connection) throws InventoryException,SQLException{
+        String query = "SELECT * from inventory where id=?";
         String id = getStringInput("Enter Product id:").toUpperCase();
-        if (!inventory.containsKey(id)){
-            throw new InventoryException("Product Not Exist");
-        }
+        // if (!inventory.containsKey(id)){
+        //     throw new InventoryException("Product Not Exist");
+        // }
+        PreparedStatement preparedStatement = connection.prepareStatement(query);
+        preparedStatement.setString(1, id);
+        ResultSet resultSet = preparedStatement.executeQuery();
+        if (resultSet.next()){
+        Product p = new Product(resultSet.getString("id"), resultSet.getString("name"), resultSet.getDouble("price"), resultSet.getInt("quantity"));
         viewFormat();
-        System.out.println(inventory.get(id));
+        System.out.println(p);
+        }else System.out.println("Product Not found!");
+        preparedStatement.close();
     }
-    private void issueStock() throws InventoryException{
+    private void issueStock(Connection connection) throws InventoryException,SQLException{
+        String query1 = "Select quantity from inventory where id=?";
+        String query2 = "UPDATE inventory SET quantity=quantity-? where id = ?";
+        PreparedStatement viewStatement = connection.prepareStatement(query1);
+        PreparedStatement updateStatement = connection.prepareStatement(query2);
         String id = getStringInput("Enter Product Id:").toUpperCase();
-        if (!inventory.containsKey(id)){
-            throw new InventoryException("Product Not Exist");
-        }
-        System.out.println("Current Stock:"+inventory.get(id).getQuantity());
+        viewStatement.setString(1, id);
+        ResultSet resultSet = viewStatement.executeQuery();
+        if (resultSet.next()){
+        // if (!inventory.containsKey(id)){
+        //     throw new InventoryException("Product Not Exist");
+        // }
+        // System.out.println("Current Stock:"+inventory.get(id).getQuantity());
+        int currStock = resultSet.getInt("quantity");
+        System.out.println("current Stock:"+currStock);
         int amount = getIntInput("Enter quantity to issue:");
         if (amount<0){
             throw new InventoryException("Input can't be negative!");
         }
-        inventory.get(id).decreseQuantity(amount);
-        System.out.println("Current Stock:"+inventory.get(id).getQuantity());
-        System.out.println("✓ Stock issued");
+        // inventory.get(id).decreseQuantity(amount);     // for map<>;
+        if (currStock>amount){
+            updateStatement.setInt(1,amount);
+            updateStatement.setString(2, id);
+            updateStatement.executeUpdate();
+            System.out.println("Updated Stock:"+(currStock-amount));
+            System.out.println("✓ Stock issued");
+        }else System.out.println("Quanity insufficient!");
+    }else System.out.println("ID not found!");
     }
-    private void restock() throws InventoryException{
+    private void restock(Connection connection) throws InventoryException,SQLException{
+        String query1 = "Select quantity from inventory where id=?";
+        String query2 = "UPDATE inventory SET quantity=quantity+? where id = ?";
+        PreparedStatement viewStatement = connection.prepareStatement(query1);
+        PreparedStatement updateStatement = connection.prepareStatement(query2);
         String id = getStringInput("Enter Product Id:").toUpperCase();
-        if (!inventory.containsKey(id)){
-            throw new InventoryException("Product Not Exist");
-        }
-        System.out.println("Current Stock:"+inventory.get(id).getQuantity());
+        viewStatement.setString(1, id);
+        ResultSet resultSet = viewStatement.executeQuery();
+        // if (!inventory.containsKey(id)){
+        //     throw new InventoryException("Product Not Exist");
+        // }
+        // System.out.println("Current Stock:"+inventory.get(id).getQuantity());
+        if (resultSet.next()){
+        int currStock = resultSet.getInt("quantity");
+        System.out.println("current Stock:"+currStock);
         int amount = getIntInput("Enter quantity to stock Up!");
         if (amount<0){
             throw new InventoryException("Input can't be negative!");
         }
-        inventory.get(id).addQuantity(amount);
-        System.out.println("Current Stock:"+inventory.get(id).getQuantity());
+        updateStatement.setInt(1, amount);
+        updateStatement.setString(2, id);
+        updateStatement.executeUpdate();
+        // inventory.get(id).addQuantity(amount);
+        System.out.println("Updated Stock:"+(currStock+amount));
         System.out.println("✓ Product restocked");
+    }else System.out.println("ID not found!");
     }
     private void showMenu(){
         System.out.println("\n" + "=".repeat(50));
@@ -229,8 +303,8 @@ public class InventoryManagementSystem{
         do { 
             System.out.print(s+"y/n?"+":");
             String str = scanner.nextLine().toUpperCase();
-            if (str=="Y" || str=="N"){
-                return str=="Y";
+            if (str.equals("Y") || str.equals("N")){
+                return str.equals("Y");
             }
             System.out.println("Invalid Input");
             pressEnterToContinue();
@@ -260,33 +334,4 @@ public class InventoryManagementSystem{
         System.out.print("\nPress Enter to continue...");
         scanner.nextLine();
     }
-}
-class FileManager{
-    public static Map<String,Product> loadInventory (){
-        Map<String,Product> currentInventory = new HashMap<>();
-        try {
-            BufferedReader br = new BufferedReader(new FileReader("inventory.txt"));
-            String line;
-            while((line=br.readLine())!=null){
-                String[] data = line.split(",");
-                Product p = new Product(data[0],data[1],Double.parseDouble(data[2]),Integer.parseInt(data[3]));
-                currentInventory.put(data[0],p);
-            }
-            br.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return currentInventory;
-    }
-    public static void saveInventory(Map<String,Product> map){
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter("inventory.txt"))) {
-            for (Product p : map.values()) {
-                bw.write(p.getId() + "," + p.getName() + "," + p.getPrice() + "," + p.getQuantity());
-                bw.newLine();
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-    }
-    
 }
