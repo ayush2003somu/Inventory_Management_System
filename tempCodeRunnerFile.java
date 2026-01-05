@@ -1,4 +1,6 @@
-    // @Override
-    // public String toString(){
-    //     return String.format("| %-8s | %-20s | %-10.2f | %-8d |", id,name,price,quantity);
-    // }
+        try{                                                         
+            Class.forName("com.mysql.cj.jdbc.Driver");               
+        }catch(ClassNotFoundException e){        
+            System.out.println("not extablished:");                    
+            System.out.println(e.getMessage());                      
+        }    
