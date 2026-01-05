@@ -75,3 +75,99 @@ Author: Ayush Srivastava
 
 B.Tech (3rd Year) | Java, JDBC & DSA Enthusiast
 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+
+## How to Run the Project (Terminal Based)
+
+Follow the steps below to run the Inventory Management System using the terminal.
+
+### Prerequisites
+
+- Java JDK 8 or higher installed
+- MySQL installed and running
+- MySQL Connector/J (JDBC driver) JAR file downloaded
+- MySQL database and table created
+
+---
+```bash
+### Step 1: Verify Java Installation
+
+Check whether Java is installed:
+
+
+java -version
+javac -version
+
+Step 2: Create Database and Table
+
+Login to MySQL:
+
+mysql -u root -p
+
+Create database and table:
+
+CREATE DATABASE inventory_db;
+USE inventory_db;
+
+CREATE TABLE inventory (
+    id VARCHAR(20) PRIMARY KEY,
+    name VARCHAR(100),
+    price DOUBLE,
+    quantity INT
+);
+
+Step 3: Update Database Credentials
+
+Update database details in your Java file:
+
+private static final String url = "jdbc:mysql://localhost:3306/inventory_db";
+private static final String username = "root";
+private static final String password = "your_password";
+
+Step 4: Add JDBC Driver
+
+Place the MySQL Connector JAR file in the project directory.
+
+Example structure:
+
+InventoryManagementSystem.java
+mysql-connector-j-9.5.0.jar
+
+Step 5: Compile the Program
+
+For macOS / Linux:
+
+javac -cp .:mysql-connector-j-9.5.0.jar InventoryManagementSystem.java
+
+For Windows:
+
+javac -cp .;mysql-connector-j-9.5.0.jar InventoryManagementSystem.java
+
+Step 6: Run the Program
+
+For macOS / Linux:
+
+java -cp .:mysql-connector-j-9.5.0.jar InventoryManagementSystem
+
+
+For Windows:
+
+java -cp .;mysql-connector-j-9.5.0.jar InventoryManagementSystem
+```
+Step 7: Use the Application
+
+Follow the menu displayed on the console
+
+Perform operations such as add, update, delete, search, issue stock, and restock
+
+All data is stored persistently in the MySQL database
+
+Notes
+
+Ensure the MySQL service is running before execution
+
+Verify the JDBC JAR file path if ClassNotFoundException occurs
+
+PreparedStatement is used to prevent SQL injection
+
+----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
